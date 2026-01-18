@@ -1,32 +1,17 @@
 [build]
-
-Directory containing your static files (HTML, CSS, JS)
-
-publish = "."
-
-Directory where your Netlify Functions are located
-
-functions = "netlify/functions"
+  publish = "."
+  functions = "netlify/functions"
 
 [[redirects]]
-
-Redirect any request to /.netlify/functions/generate to the actual function logic
-
-from = "/api/generate"
-to = "/.netlify/functions/generate"
-status = 200
+  from = "/api/generate"
+  to = "/.netlify/functions/generate"
+  status = 200
 
 [[redirects]]
-
-Basic SPA redirect: if a file doesn't exist, serve index.html
-
-from = "/*"
-to = "/index.html"
-status = 200
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [functions]
-
-Increase timeout for AI generation (standard is 10s, Gemini can take longer)
-
-external_node_modules = ["node-fetch"]
-node_bundle = true
+  external_node_modules = ["node-fetch"]
+  node_bundle = true
