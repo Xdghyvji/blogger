@@ -1,106 +1,85 @@
 /**
  * Netlify Function: generate.js
- * Uses gemini-2.5-flash (Free Tier) to generate SEO-optimized blog content.
- * All logic is handled server-side using Netlify Environment Variables for security.
+ * Uses gemini-2.5-flash for SEO content and Pollinations.ai for image generation.
  */
 
 exports.handler = async (event, context) => {
-    // Enable CORS for frontend communication
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
 
-    // Handle preflight requests
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers, body: '' };
     }
 
-    // Only allow POST requests for data generation
     if (event.httpMethod !== 'POST') {
-        return { 
-            statusCode: 405, 
-            headers, 
-            body: JSON.stringify({ error: 'Method Not Allowed' }) 
-        };
+        return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
 
     try {
         const { topic, tone } = JSON.parse(event.body);
+        if (!topic) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Topic is required' }) };
 
-        if (!topic) {
-            return { 
-                statusCode: 400, 
-                headers, 
-                body: JSON.stringify({ error: 'Topic is required' }) 
-            };
-        }
-
-        // Retrieve API Key from Netlify Environment Variables
         const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) return { statusCode: 401, headers, body: JSON.stringify({ error: 'GEMINI_API_KEY missing' }) };
 
-        if (!apiKey) {
-            return { 
-                statusCode: 401, 
-                headers, 
-                body: JSON.stringify({ error: 'GEMINI_API_KEY not found in server environment.' }) 
-            };
-        }
-
-        /**
-         * Model: gemini-2.5-flash
-         * Endpoint: v1beta
-         */
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-        const prompt = `You are a professional SEO blog writer. Write a detailed blog post about "${topic}" in a ${tone || 'Professional'} tone. 
-        Return the response strictly as a VALID JSON object:
+        const prompt = `You are an elite SEO strategist. Write a comprehensive blog post about "${topic}" in a ${tone || 'Professional'} tone. 
+        
+        STRICT RULES:
+        1. STRUCTURE: Min 1500 words. 1-2-3 paragraph rule. Use H1, H2, H3. Bold key terms.
+        2. SEO: Meta title (50-60 chars), Meta description (120-155 chars). Primary keyword in first 100 words.
+        3. IMAGES: You must create 3 highly descriptive image prompts related to the content.
+        
+        Return strictly as VALID JSON:
         {
-            "title": "A catchy blog title",
-            "content": "The blog body in HTML format (use <h2>, <p>, <ul> tags)",
-            "meta_title": "SEO title under 60 chars",
-            "meta_description": "SEO description under 160 chars",
-            "tags": "comma, separated, keywords",
-            "canonical_url": "https://example.com/blog-post",
-            "external_links": ["https://authority-site.org"]
+            "title": "SEO Title",
+            "content": "Full blog body in HTML",
+            "meta_title": "SEO Meta Title",
+            "meta_description": "SEO Meta Description",
+            "image_prompts": [
+                "A cinematic high-resolution shot of...",
+                "A professional 3d render representing...",
+                "A wide-angle atmospheric photography of..."
+            ],
+            "slug": "url-slug",
+            "tags": "tag1, tag2",
+            "category": "Category"
         }`;
 
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
 
         const data = await response.json();
-        
-        if (!response.ok) {
-            return {
-                statusCode: response.status,
-                headers,
-                body: JSON.stringify({ error: data.error?.message || 'Gemini API Error' })
-            };
-        }
+        if (!response.ok) throw new Error(data.error?.message || 'API Error');
 
-        // Extract the text part of the AI response
-        const aiResponseText = data.candidates[0].content.parts[0].text;
-        
-        // Remove potential markdown wrappers like ```json ... ```
-        const jsonString = aiResponseText.replace(/```json|```/gi, "").trim();
+        const aiText = data.candidates[0].content.parts[0].text;
+        const blogData = JSON.parse(aiText.replace(/```json|```/gi, "").trim());
+
+        // Generate Pollinations.ai URLs based on AI prompts
+        // We use a seed and dimensions for better results
+        blogData.images = blogData.image_prompts.map(p => {
+            const encodedPrompt = encodeURIComponent(p);
+            return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1200&height=630&nologo=true&seed=${Math.floor(Math.random() * 100000)}`;
+        });
 
         return {
             statusCode: 200,
             headers,
-            body: jsonString
+            body: JSON.stringify(blogData)
         };
 
     } catch (error) {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: "Internal Server Error: " + error.message })
+            body: JSON.stringify({ error: error.message })
         };
     }
 };
