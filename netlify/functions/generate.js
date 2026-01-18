@@ -1,7 +1,23 @@
 /**
  * Netlify Function: generate.js
- * Uses gemini-2.5-flash for SEO content and Pollinations.ai for image generation.
+ * Version: 7.0 - Authority Research Agent
+ * Features: Google Search Grounding, Verified External Linking, Smart Link Mapping
  */
+
+// Internal Link Map for SEO Injection
+const LINK_MAP = {
+    "TikTok": "/tiktok.html",
+    "Instagram": "/instagram.html",
+    "Email Extractor": "/email-tools.html",
+    "Blog Writer": "/blog-tools.html",
+    "SEO": "/blog-tools.html",
+    "Twitter": "/twitter-tools.html",
+    "Pricing": "/subscription.html",
+    "Contact": "/contact.html"
+};
+
+// Supported model for Google Search Grounding
+const MODEL = "gemini-2.5-flash-preview-09-2025";
 
 exports.handler = async (event, context) => {
     const headers = {
@@ -20,53 +36,74 @@ exports.handler = async (event, context) => {
 
     try {
         const { topic, tone } = JSON.parse(event.body);
-        if (!topic) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Topic is required' }) };
-
         const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) return { statusCode: 401, headers, body: JSON.stringify({ error: 'GEMINI_API_KEY missing' }) };
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        if (!apiKey) {
+            return { statusCode: 401, headers, body: JSON.stringify({ error: 'GEMINI_API_KEY missing' }) };
+        }
 
-        const prompt = `You are an elite SEO strategist. Write a comprehensive blog post about "${topic}" in a ${tone || 'Professional'} tone. 
+        // Endpoint for Gemini 2.5 with grounding support
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
         
-        STRICT RULES:
-        1. STRUCTURE: Min 1500 words. 1-2-3 paragraph rule. Use H1, H2, H3. Bold key terms.
-        2. SEO: Meta title (50-60 chars), Meta description (120-155 chars). Primary keyword in first 100 words.
-        3. IMAGES: You must create 3 highly descriptive image prompts related to the content.
+        const systemPrompt = `You are an elite SEO researcher and journalist. Your goal is to write a high-authority blog post with verified data.
         
+        STRICT FORMATTING RULES:
+        - 1-2-3 Rule: Max 3 lines per paragraph.
+        - Hierarchical Headings: H1 (Title), H2 (Sections), H3 (Sub-points).
+        - Grounding: Use the Google Search tool to find 3-5 real, high-authority external URLs (e.g., Wikipedia, Forbes, Research papers) and include them as HTML anchors in the content.
+        - Internal Linking: Naturally integrate these keywords if possible: ${Object.keys(LINK_MAP).join(', ')}.
+
         Return strictly as VALID JSON:
         {
             "title": "SEO Title",
-            "content": "Full blog body in HTML",
+            "content": "Full blog body in HTML with embedded external and internal links",
             "meta_title": "SEO Meta Title",
             "meta_description": "SEO Meta Description",
-            "image_prompts": [
-                "A cinematic high-resolution shot of...",
-                "A professional 3d render representing...",
-                "A wide-angle atmospheric photography of..."
-            ],
+            "image_prompts": ["Cinematic photo of...", "Diagram showing...", "Professional render of..."],
             "slug": "url-slug",
             "tags": "tag1, tag2",
-            "category": "Category"
+            "sources": [{"title": "Source Title", "uri": "URL"}]
         }`;
+
+        const payload = {
+            contents: [{ parts: [{ text: `Write a detailed 2000-word blog post about "${topic}" in a ${tone || 'Professional'} tone.` }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            tools: [{ "google_search": {} }] // Enable Google Search grounding
+        };
 
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            body: JSON.stringify(payload)
         });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'API Error');
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error?.message || 'Gemini API Error');
+        }
 
-        const aiText = data.candidates[0].content.parts[0].text;
-        const blogData = JSON.parse(aiText.replace(/```json|```/gi, "").trim());
+        const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        const groundings = result.candidates?.[0]?.groundingMetadata?.groundingAttributions?.map(a => ({
+            uri: a.web?.uri,
+            title: a.web?.title
+        })) || [];
 
-        // Generate Pollinations.ai URLs based on AI prompts
-        // We use a seed and dimensions for better results
-        blogData.images = blogData.image_prompts.map(p => {
-            const encodedPrompt = encodeURIComponent(p);
-            return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1200&height=630&nologo=true&seed=${Math.floor(Math.random() * 100000)}`;
+        let blogData = JSON.parse(aiText.replace(/```json|```/gi, "").trim());
+
+        // Attach verified sources to the blog data
+        blogData.verified_sources = groundings;
+
+        // Apply Internal Link Mapping
+        Object.keys(LINK_MAP).forEach(keyword => {
+            const regex = new RegExp(`(${keyword})(?![^<]*>|[^<>]*<\/a>)`, 'gi');
+            blogData.content = blogData.content.replace(regex, `<a href="${LINK_MAP[keyword]}" class="text-blue-600 font-bold hover:underline">$1</a>`);
+        });
+
+        // Generate Pollinations.ai Images
+        blogData.images = blogData.image_prompts.map((p, idx) => {
+            const seed = Math.floor(Math.random() * 100000);
+            return `https://image.pollinations.ai/prompt/${encodeURIComponent(p)}?width=1200&height=630&nologo=true&seed=${seed}`;
         });
 
         return {
