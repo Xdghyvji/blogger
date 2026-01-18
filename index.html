@@ -57,19 +57,9 @@
                 </div>
             </div>
 
-            <!-- API Key Warning/Setup -->
-            <div id="apiKeySection" class="bg-amber-50 p-6 rounded-2xl border border-amber-200 hidden">
-                <h3 class="font-bold text-amber-800 text-sm mb-2 flex items-center gap-2">
-                    <i class="fas fa-key"></i> Missing Gemini API Key
-                </h3>
-                <p class="text-xs text-amber-700 mb-3">Your API key is not found in Firestore (settings/gemini). Please add it below to save it securely.</p>
-                <div class="flex gap-2">
-                    <input type="password" id="manualApiKey" placeholder="AIza..." class="flex-1 text-xs p-2 rounded border border-amber-300">
-                    <button onclick="saveApiKey()" class="bg-amber-600 text-white px-3 py-1 rounded text-xs">Save</button>
-                </div>
-            </div>
-
             <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-xl">
+                <h3 class="font-bold mb-2 text-blue-400">Security Note:</h3>
+                <p class="text-xs text-slate-400 mb-4">API keys are now handled securely via Netlify Environment Variables.</p>
                 <h3 class="font-bold mb-2">Automated Tasks:</h3>
                 <ul class="text-sm space-y-2 text-slate-400">
                     <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> SEO Metadata</li>
@@ -120,10 +110,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // Updated Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBVruE0hRVZisHlnnyuWBl-PZp3-DMp028",
             authDomain: "pakages-provider.firebaseapp.com",
@@ -138,47 +127,20 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        let GEMINI_API_KEY = "";
         let currentGeneratedContent = null;
 
-        onAuthStateChanged(auth, async (user) => {
+        onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('authStatus').innerHTML = `<span class="flex items-center gap-1"><span class="w-2 h-2 bg-green-500 rounded-full"></span> Database Online</span>`;
-                fetchApiKey();
             } else {
                 signInAnonymously(auth);
             }
         });
 
-        async function fetchApiKey() {
-            try {
-                const docSnap = await getDoc(doc(db, "settings", "gemini"));
-                if (docSnap.exists()) {
-                    GEMINI_API_KEY = docSnap.data().key;
-                    document.getElementById('apiKeySection').classList.add('hidden');
-                } else {
-                    document.getElementById('apiKeySection').classList.remove('hidden');
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        window.saveApiKey = async () => {
-            const key = document.getElementById('manualApiKey').value;
-            if(!key) return;
-            await setDoc(doc(db, "settings", "gemini"), { key });
-            GEMINI_API_KEY = key;
-            document.getElementById('apiKeySection').classList.add('hidden');
-        };
-
         window.processBlog = async () => {
             const topic = document.getElementById('topicInput').value;
             if(!topic) return alert("Please enter a topic");
             
-            if(!GEMINI_API_KEY) {
-                document.getElementById('apiKeySection').classList.remove('hidden');
-                return alert("No API Key found. Add it in the yellow box.");
-            }
-
             document.getElementById('emptyState').classList.add('hidden');
             document.getElementById('outputDisplay').classList.add('hidden');
             document.getElementById('loadingState').classList.remove('hidden');
@@ -188,8 +150,8 @@
                     method: 'POST',
                     body: JSON.stringify({ 
                         topic, 
-                        tone: document.getElementById('toneSelect').value,
-                        apiKey: GEMINI_API_KEY 
+                        tone: document.getElementById('toneSelect').value
+                        // apiKey is no longer sent from frontend, backend uses process.env.GEMINI_API_KEY
                     })
                 });
 
@@ -201,7 +163,7 @@
                 
                 renderBlog(blogData, imageUrl);
             } catch (e) {
-                alert("Error: " + e.message);
+                alert("Generation Error: " + e.message + ". Check if GEMINI_API_KEY is set in Netlify.");
             } finally {
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('outputDisplay').classList.remove('hidden');
@@ -222,11 +184,15 @@
 
         window.saveToFirestore = async () => {
             if(!currentGeneratedContent) return;
-            await addDoc(collection(db, "generated_posts"), {
-                ...currentGeneratedContent,
-                createdAt: new Date()
-            });
-            alert("Saved!");
+            try {
+                await addDoc(collection(db, "generated_posts"), {
+                    ...currentGeneratedContent,
+                    createdAt: new Date()
+                });
+                alert("Post saved successfully to Firestore!");
+            } catch (e) {
+                alert("Firestore Error: " + e.message);
+            }
         };
     </script>
 </body>
