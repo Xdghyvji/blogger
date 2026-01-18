@@ -123,14 +123,15 @@
         import { getFirestore, doc, getDoc, setDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
+        // Updated Firebase Config
         const firebaseConfig = {
-            apiKey: "AIzaSyBPyGJ_qX58Ye3Z8BTiKnYGNMYROnyHlGA",
-            authDomain: "mubashir-2b7cc.firebaseapp.com",
-            projectId: "mubashir-2b7cc",
-            storageBucket: "mubashir-2b7cc.firebasestorage.app",
-            messagingSenderId: "107494735119",
-            appId: "1:107494735119:web:43e3c6dff8a0e67b9e527a",
-            measurementId: "G-2JY12046QH"
+            apiKey: "AIzaSyBVruE0hRVZisHlnnyuWBl-PZp3-DMp028",
+            authDomain: "pakages-provider.firebaseapp.com",
+            projectId: "pakages-provider",
+            storageBucket: "pakages-provider.firebasestorage.app",
+            messagingSenderId: "109547136506",
+            appId: "1:109547136506:web:c9d34657d73b0fcc3ef043",
+            measurementId: "G-672LC3842S"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -173,8 +174,6 @@
             const topic = document.getElementById('topicInput').value;
             if(!topic) return alert("Please enter a topic");
             
-            // Note: If you have set the GEMINI_API_KEY in Netlify Env Vars, 
-            // the check below can be bypassed or adjusted.
             if(!GEMINI_API_KEY) {
                 document.getElementById('apiKeySection').classList.remove('hidden');
                 return alert("No API Key found. Add it in the yellow box.");
