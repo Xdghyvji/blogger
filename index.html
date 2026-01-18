@@ -80,70 +80,49 @@
             </div>
         </div>
 
-        <!-- Main Content Area: Editor/Preview -->
+        <!-- Main Content Area -->
         <div class="lg:col-span-8 space-y-6">
-            
-            <!-- Loading State -->
             <div id="loadingState" class="hidden animate-pulse space-y-4">
                 <div class="h-64 bg-slate-200 rounded-2xl"></div>
                 <div class="h-8 bg-slate-200 w-3/4 rounded"></div>
                 <div class="h-4 bg-slate-200 w-full rounded"></div>
-                <div class="h-4 bg-slate-200 w-5/6 rounded"></div>
             </div>
 
-            <!-- Output Display -->
             <div id="outputDisplay" class="hidden space-y-6">
-                
-                <!-- SEO & Meta Card -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
                     <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <i class="fas fa-search text-blue-500"></i> SEO & Meta Data
                     </h3>
-                    <div id="metaGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <!-- Filled by JS -->
-                    </div>
+                    <div id="metaGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm"></div>
                 </div>
 
-                <!-- Blog Post Area -->
                 <article class="bg-white p-8 md:p-12 rounded-2xl shadow-sm border border-slate-200">
                     <div id="thumbnailContainer" class="mb-8 rounded-xl overflow-hidden shadow-lg h-80 bg-slate-100 hidden">
                         <img id="postThumbnail" src="" alt="Post Thumbnail" class="w-full h-full object-cover">
                     </div>
-                    
-                    <div id="blogBody" class="prose prose-slate max-w-none">
-                        <!-- AI Content injected here -->
-                    </div>
+                    <div id="blogBody" class="prose prose-slate max-w-none"></div>
                 </article>
 
                 <div class="flex justify-end gap-3 pb-8">
-                    <button onclick="window.print()" class="px-6 py-2 rounded-xl border border-slate-200 bg-white font-medium hover:bg-slate-50 transition-all">
-                        Print / PDF
-                    </button>
-                    <button onclick="saveToFirestore()" class="px-6 py-2 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition-all">
-                        Save to Firebase
-                    </button>
+                    <button onclick="window.print()" class="px-6 py-2 rounded-xl border border-slate-200 bg-white font-medium hover:bg-slate-50 transition-all">Print / PDF</button>
+                    <button onclick="saveToFirestore()" class="px-6 py-2 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition-all">Save to Firebase</button>
                 </div>
             </div>
 
-            <!-- Empty State -->
             <div id="emptyState" class="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
                 <div class="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-feather-pointed text-slate-300 text-3xl"></i>
                 </div>
                 <h3 class="text-slate-500 font-medium text-lg">Your masterpiece starts here.</h3>
-                <p class="text-slate-400 text-sm mt-1">Enter a topic on the left to begin generation.</p>
             </div>
-
         </div>
     </main>
 
-    <!-- Firebase Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // Your Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBPyGJ_qX58Ye3Z8BTiKnYGNMYROnyHlGA",
             authDomain: "mubashir-2b7cc.firebaseapp.com",
@@ -154,7 +133,6 @@
             measurementId: "G-2JY12046QH"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -162,7 +140,6 @@
         let GEMINI_API_KEY = "";
         let currentGeneratedContent = null;
 
-        // Auth Logic
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 document.getElementById('authStatus').innerHTML = `<span class="flex items-center gap-1"><span class="w-2 h-2 bg-green-500 rounded-full"></span> Database Online</span>`;
@@ -172,148 +149,86 @@
             }
         });
 
-        // 1. Fetch API Key from Firestore
         async function fetchApiKey() {
             try {
-                const docRef = doc(db, "settings", "gemini");
-                const docSnap = await getDoc(docRef);
+                const docSnap = await getDoc(doc(db, "settings", "gemini"));
                 if (docSnap.exists()) {
                     GEMINI_API_KEY = docSnap.data().key;
                     document.getElementById('apiKeySection').classList.add('hidden');
                 } else {
                     document.getElementById('apiKeySection').classList.remove('hidden');
                 }
-            } catch (e) {
-                console.error("Error fetching API Key", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
-        // Save API Key to Firestore
         window.saveApiKey = async () => {
             const key = document.getElementById('manualApiKey').value;
-            if(!key) return alert("Enter a key");
-            try {
-                await setDoc(doc(db, "settings", "gemini"), { key: key });
-                GEMINI_API_KEY = key;
-                document.getElementById('apiKeySection').classList.add('hidden');
-                alert("API Key saved to Firestore!");
-            } catch (e) {
-                alert("Error saving key: " + e.message);
-            }
+            if(!key) return;
+            await setDoc(doc(db, "settings", "gemini"), { key });
+            GEMINI_API_KEY = key;
+            document.getElementById('apiKeySection').classList.add('hidden');
         };
 
-        // 2. The Agent Logic
         window.processBlog = async () => {
             const topic = document.getElementById('topicInput').value;
             if(!topic) return alert("Please enter a topic");
-            if(!GEMINI_API_KEY) return alert("No API Key found. Add it in the yellow box.");
+            
+            // Note: If you have set the GEMINI_API_KEY in Netlify Env Vars, 
+            // the check below can be bypassed or adjusted.
+            if(!GEMINI_API_KEY) {
+                document.getElementById('apiKeySection').classList.remove('hidden');
+                return alert("No API Key found. Add it in the yellow box.");
+            }
 
-            // UI State
             document.getElementById('emptyState').classList.add('hidden');
             document.getElementById('outputDisplay').classList.add('hidden');
             document.getElementById('loadingState').classList.remove('hidden');
 
             try {
-                // Task 1: Generate Content with Gemini
-                const aiResponse = await callGemini(topic);
-                const blogData = JSON.parse(aiResponse);
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        topic, 
+                        tone: document.getElementById('toneSelect').value,
+                        apiKey: GEMINI_API_KEY 
+                    })
+                });
+
+                const blogData = await response.json();
+                if(blogData.error) throw new Error(blogData.error);
+                
                 currentGeneratedContent = blogData;
-
-                // Task 2: Fetch Image from Unsplash (Free Search API)
-                const imageUrl = await fetchUnsplashImage(topic);
-
-                // Task 3: Render
+                const imageUrl = `https://source.unsplash.com/featured/1200x800?${encodeURIComponent(topic)}`;
+                
                 renderBlog(blogData, imageUrl);
-
             } catch (e) {
-                console.error(e);
-                alert("Generation failed. Check console or API key.");
+                alert("Error: " + e.message);
             } finally {
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('outputDisplay').classList.remove('hidden');
             }
         };
 
-        async function callGemini(topic) {
-            const tone = document.getElementById('toneSelect').value;
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-            
-            const prompt = `You are a professional SEO blog writer. Write a comprehensive blog post about "${topic}" in a ${tone} tone. 
-            Format the response as a valid JSON object ONLY, with these keys: 
-            "title" (H1), 
-            "content" (HTML string with H2, H3, lists, and bold text), 
-            "meta_title", 
-            "meta_description", 
-            "tags" (comma separated), 
-            "canonical_url" (placeholder),
-            "external_links" (Array of 2 real authority site URLs like Wikipedia or News related to topic).
-            Ensure the content is high-quality, plagiarism-free, and informative.`;
-
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-            });
-            const data = await response.json();
-            
-            // Clean JSON string if AI adds markdown backticks
-            let text = data.candidates[0].content.parts[0].text;
-            return text.replace(/```json|```/gi, "").trim();
-        }
-
-        async function fetchUnsplashImage(query) {
-            try {
-                const response = await fetch(`https://source.unsplash.com/featured/1200x800?${encodeURIComponent(query)}`);
-                if (response.url) return response.url;
-            } catch (e) { return null; }
-        }
-
         function renderBlog(data, imageUrl) {
-            // Render Meta
-            const metaGrid = document.getElementById('metaGrid');
-            metaGrid.innerHTML = `
+            document.getElementById('metaGrid').innerHTML = `
                 <div class="p-3 bg-slate-50 rounded-lg"><strong>Meta Title:</strong><br>${data.meta_title}</div>
                 <div class="p-3 bg-slate-50 rounded-lg"><strong>Meta Desc:</strong><br>${data.meta_description}</div>
-                <div class="p-3 bg-slate-50 rounded-lg"><strong>Tags:</strong><br>${data.tags}</div>
-                <div class="p-3 bg-slate-50 rounded-lg"><strong>Canonical:</strong><br>${data.canonical_url}</div>
             `;
-
-            // Render Image
-            const thumbCont = document.getElementById('thumbnailContainer');
             if(imageUrl) {
                 document.getElementById('postThumbnail').src = imageUrl;
-                thumbCont.classList.remove('hidden');
+                document.getElementById('thumbnailContainer').classList.remove('hidden');
             }
-
-            // Render Body
-            const blogBody = document.getElementById('blogBody');
-            blogBody.innerHTML = `
-                <h1 class="text-4xl font-extrabold mb-6">${data.title}</h1>
-                ${data.content}
-                <div class="mt-8 pt-6 border-t border-slate-100">
-                    <h4 class="font-bold text-slate-700 mb-2 underline underline-offset-4 decoration-blue-500">Authority References:</h4>
-                    <ul class="text-blue-600">
-                        ${data.external_links.map(link => `<li><a href="${link}" target="_blank" class="hover:underline">${link}</a></li>`).join('')}
-                    </ul>
-                </div>
-            `;
+            document.getElementById('blogBody').innerHTML = `<h1 class="text-4xl font-bold mb-6">${data.title}</h1>${data.content}`;
         }
 
         window.saveToFirestore = async () => {
             if(!currentGeneratedContent) return;
-            try {
-                const docRef = await addDoc(collection(db, "generated_posts"), {
-                    ...currentGeneratedContent,
-                    createdAt: new Date(),
-                    thumbnail: document.getElementById('postThumbnail').src
-                });
-                alert("Successfully saved to Firestore collection 'generated_posts'!");
-            } catch (e) {
-                alert("Save failed: " + e.message);
-            }
+            await addDoc(collection(db, "generated_posts"), {
+                ...currentGeneratedContent,
+                createdAt: new Date()
+            });
+            alert("Saved!");
         };
-
     </script>
-
 </body>
 </html>
