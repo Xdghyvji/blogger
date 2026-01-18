@@ -1,24 +1,18 @@
-const fetch = require('node-fetch');
-
 /**
  * Netlify Function: generate.js
- * This serves as the secure backend for the AI Blog Agent.
- * It keeps your Gemini API Key hidden from the client-side.
+ * Updated to use native fetch (Node.js 18+) to avoid dependency errors.
  */
 exports.handler = async (event, context) => {
-    // Enable CORS for frontend requests
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
 
-    // Handle preflight requests
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers, body: '' };
     }
 
-    // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return { 
             statusCode: 405, 
@@ -34,8 +28,6 @@ exports.handler = async (event, context) => {
             return { statusCode: 400, headers, body: JSON.stringify({ error: 'Topic is required' }) };
         }
 
-        // Use the API key provided from the frontend (fetched from Firestore)
-        // Or fallback to an environment variable if you prefer to store it in Netlify settings
         const finalApiKey = apiKey || process.env.GEMINI_API_KEY;
 
         if (!finalApiKey) {
@@ -48,48 +40,34 @@ exports.handler = async (event, context) => {
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${finalApiKey}`;
 
-        const prompt = `You are a professional SEO blog writer and digital marketer. 
-        Write a comprehensive, high-authority blog post about "${topic}" in a ${tone || 'Professional'} tone. 
-        
-        Requirements:
-        1. Originality: The content must be unique and appear plagiarism-free.
-        2. SEO: Include a compelling meta title and description.
-        3. Structure: Use H1 for the title, and H2/H3 tags for subheadings. Use bullet points and bold text where appropriate.
-        4. Links: Suggest 2 high-authority external URLs (like Wikipedia, .gov, or .edu sites) relevant to the context.
-        
-        Format the response as a STICT VALID JSON object with the following keys:
+        const prompt = `You are a professional SEO blog writer. Write a blog post about "${topic}" in a ${tone || 'Professional'} tone. 
+        Format as a VALID JSON object:
         {
-            "title": "The Blog Title",
-            "content": "The full HTML body content",
-            "meta_title": "SEO Optimized Title",
-            "meta_description": "SEO Optimized Description (max 160 chars)",
-            "tags": "tag1, tag2, tag3",
-            "canonical_url": "https://example.com/blog-slug",
+            "title": "Title",
+            "content": "HTML body content",
+            "meta_title": "SEO Title",
+            "meta_description": "SEO Description",
+            "tags": "tag1, tag2",
+            "canonical_url": "https://example.com",
             "external_links": ["https://link1.com", "https://link2.com"]
         }`;
 
+        // Using global fetch (available in Node 18+)
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.7,
-                    topP: 0.8,
-                    topK: 40
-                }
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
+        const data = await response.json();
+        
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Gemini API Error');
+            throw new Error(data.error?.message || 'Gemini API Error');
         }
 
-        const data = await response.json();
         let aiText = data.candidates[0].content.parts[0].text;
-
-        // Clean up AI output in case it includes markdown code blocks
         const jsonContent = aiText.replace(/```json|```/gi, "").trim();
 
         return {
@@ -99,11 +77,10 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        console.error('Generator Error:', error);
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: 'Internal Server Error', details: error.message })
+            body: JSON.stringify({ error: error.message })
         };
     }
 };
