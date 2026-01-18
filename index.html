@@ -3,197 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog Agent Pro</title>
+    <title>Authority Research Agent v7.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body class="bg-slate-50 text-slate-900 min-h-screen font-sans">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'Fira Code', monospace; }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
 
-    <!-- Header -->
-    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        .blog-content h1 { @apply text-4xl font-bold mb-6 text-slate-900; }
+        .blog-content h2 { @apply text-2xl font-semibold mt-10 mb-4 text-slate-800 border-b pb-2; }
+        .blog-content h3 { @apply text-xl font-medium mt-6 mb-3 text-slate-700; }
+        .blog-content p { @apply text-slate-600 leading-relaxed mb-4; }
+        .blog-content ul { @apply list-disc ml-6 mb-4 text-slate-600; }
+        .blog-content li { @apply mb-2; }
+        .blog-content a { @apply text-blue-600 underline; }
+
+        .loader {
+            border-top-color: #3b82f6;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen pb-20">
+
+    <nav class="glass sticky top-0 z-50 border-b mb-8">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-2">
-                <div class="bg-blue-600 p-2 rounded-lg">
-                    <i class="fas fa-robot text-white text-xl"></i>
+                <div class="bg-blue-600 p-1.5 rounded-lg text-white">
+                    <i data-lucide="shield-check" class="w-6 h-6"></i>
                 </div>
-                <span class="font-bold text-xl tracking-tight">BlogAgent<span class="text-blue-600">AI</span></span>
+                <h1 class="font-bold text-xl text-slate-800 tracking-tight">Authority Research Agent <span class="text-blue-600">v7.0</span></h1>
             </div>
-            <div id="authStatus" class="text-sm font-medium text-slate-500">
-                Initializing Database...
+            <div id="status-badge" class="hidden flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
+                <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                AGENT ACTIVE
             </div>
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <main class="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <!-- Sidebar: Configuration -->
+        <!-- Left Column: Controls & Logs -->
         <div class="lg:col-span-4 space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="font-bold text-lg mb-4 flex items-center gap-2">
-                    <i class="fas fa-magic text-blue-500"></i> Write New Post
+                <h2 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="settings-2" class="w-5 h-5"></i> Configuration
                 </h2>
-                
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Target Keyword / Topic</label>
-                        <input type="text" id="topicInput" placeholder="e.g. Benefits of Mediterranean Diet" 
-                               class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Primary Topic</label>
+                        <input id="topic" type="text" placeholder="e.g. Future of Quantum Computing" 
+                               class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                     </div>
-
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Tone of Voice</label>
-                        <select id="toneSelect" class="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none">
-                            <option value="Professional">Professional</option>
-                            <option value="Conversational">Conversational</option>
-                            <option value="Technical">Technical</option>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Writing Tone</label>
+                        <select id="tone" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                            <option value="Professional">Professional & Authoritative</option>
+                            <option value="Conversational">Friendly & Engaging</option>
+                            <option value="Academic">Academic & Deep-Dive</option>
                         </select>
                     </div>
-
-                    <button id="generateBtn" onclick="processBlog()"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2">
-                        <span>Generate Blog</span>
-                        <i class="fas fa-paper-plane"></i>
+                    <button id="generate-btn" class="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-xl font-bold shadow-xl transition-all flex items-center justify-center gap-2 group">
+                        <span>LAUNCH AGENT</span>
+                        <i data-lucide="send" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-xl">
-                <h3 class="font-bold mb-2 text-blue-400">Security Note:</h3>
-                <p class="text-xs text-slate-400 mb-4">API keys are now handled securely via Netlify Environment Variables.</p>
-                <h3 class="font-bold mb-2">Automated Tasks:</h3>
-                <ul class="text-sm space-y-2 text-slate-400">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> SEO Metadata</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> Plagiarism Check</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> Authority Links</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> Unsplash Thumbnail</li>
-                </ul>
+            <!-- Agent Logs -->
+            <div class="bg-slate-900 rounded-2xl p-4 shadow-xl border border-slate-800">
+                <div class="flex items-center justify-between mb-3 px-2">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Agent Workflow Logs</span>
+                    <div id="log-spinner" class="hidden w-3 h-3 border-2 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
+                </div>
+                <div id="log-container" class="space-y-2 h-64 overflow-y-auto pr-2 custom-scrollbar mono text-[11px]">
+                    <div class="text-slate-500 italic">Standing by for instructions...</div>
+                </div>
             </div>
         </div>
 
-        <!-- Main Content Area -->
+        <!-- Right Column: Results -->
         <div class="lg:col-span-8 space-y-6">
-            <div id="loadingState" class="hidden animate-pulse space-y-4">
-                <div class="h-64 bg-slate-200 rounded-2xl"></div>
-                <div class="h-8 bg-slate-200 w-3/4 rounded"></div>
-                <div class="h-4 bg-slate-200 w-full rounded"></div>
+            <!-- Loading State -->
+            <div id="loading-state" class="hidden bg-white rounded-2xl p-20 border border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
+                <div class="loader w-12 h-12 border-4 border-slate-200 rounded-full mb-4"></div>
+                <h3 class="font-bold text-lg text-slate-800">Agent is Researching...</h3>
+                <p class="text-slate-500 max-w-xs">Scanning high-authority sources and drafting your 2,000-word post.</p>
             </div>
 
-            <div id="outputDisplay" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-                    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <i class="fas fa-search text-blue-500"></i> SEO & Meta Data
-                    </h3>
-                    <div id="metaGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm"></div>
-                </div>
-
-                <article class="bg-white p-8 md:p-12 rounded-2xl shadow-sm border border-slate-200">
-                    <div id="thumbnailContainer" class="mb-8 rounded-xl overflow-hidden shadow-lg h-80 bg-slate-100 hidden">
-                        <img id="postThumbnail" src="" alt="Post Thumbnail" class="w-full h-full object-cover">
+            <!-- Result Card -->
+            <div id="result-card" class="hidden space-y-6 animate-fade-in">
+                
+                <!-- Metadata Controls -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-blue-600 uppercase">Meta Title</span>
+                            <button onclick="copyText('meta-title')" class="p-1.5 hover:bg-slate-100 rounded text-slate-400">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p id="meta-title" class="text-sm font-semibold text-slate-800"></p>
                     </div>
-                    <div id="blogBody" class="prose prose-slate max-w-none"></div>
-                </article>
-
-                <div class="flex justify-end gap-3 pb-8">
-                    <button onclick="window.print()" class="px-6 py-2 rounded-xl border border-slate-200 bg-white font-medium hover:bg-slate-50 transition-all">Print / PDF</button>
-                    <button onclick="saveToFirestore()" class="px-6 py-2 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition-all">Save to Firebase</button>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-blue-600 uppercase">Meta Description</span>
+                            <button onclick="copyText('meta-desc')" class="p-1.5 hover:bg-slate-100 rounded text-slate-400">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p id="meta-desc" class="text-sm text-slate-600"></p>
+                    </div>
                 </div>
-            </div>
 
-            <div id="emptyState" class="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
-                <div class="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-feather-pointed text-slate-300 text-3xl"></i>
+                <!-- Main Content Preview -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 px-6 py-3 border-b flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4"></i> Article Preview
+                        </span>
+                        <button id="copy-blog-btn" class="flex items-center gap-2 px-3 py-1.5 bg-white border rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Full Blog
+                        </button>
+                    </div>
+                    
+                    <div class="p-8">
+                        <!-- Featured Image with Copy Link -->
+                        <div class="relative group mb-8 rounded-xl overflow-hidden">
+                            <img id="featured-image" src="" class="w-full h-80 object-cover" alt="Featured">
+                            <button id="copy-image-link" class="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-lg text-xs font-bold opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2">
+                                <i data-lucide="link" class="w-3.5 h-3.5"></i> Copy Image Link
+                            </button>
+                        </div>
+
+                        <div id="blog-output" class="blog-content"></div>
+                    </div>
                 </div>
-                <h3 class="text-slate-500 font-medium text-lg">Your masterpiece starts here.</h3>
+
+                <!-- Verified Sources -->
+                <div class="bg-blue-900 rounded-2xl p-6 text-white shadow-xl">
+                    <h3 class="font-bold flex items-center gap-2 mb-4">
+                        <i data-lucide="globe" class="w-5 h-5 text-blue-300"></i> Verified Grounding Sources
+                    </h3>
+                    <div id="sources-list" class="space-y-3"></div>
+                </div>
             </div>
         </div>
     </main>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+    <script>
+        // Initialization
+        lucide.createIcons();
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBVruE0hRVZisHlnnyuWBl-PZp3-DMp028",
-            authDomain: "pakages-provider.firebaseapp.com",
-            projectId: "pakages-provider",
-            storageBucket: "pakages-provider.firebasestorage.app",
-            messagingSenderId: "109547136506",
-            appId: "1:109547136506:web:c9d34657d73b0fcc3ef043",
-            measurementId: "G-672LC3842S"
-        };
+        const logContainer = document.getElementById('log-container');
+        const generateBtn = document.getElementById('generate-btn');
+        const blogOutput = document.getElementById('blog-output');
+        const metaTitle = document.getElementById('meta-title');
+        const metaDesc = document.getElementById('meta-desc');
+        const featuredImage = document.getElementById('featured-image');
+        const sourcesList = document.getElementById('sources-list');
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        let currentGeneratedContent = null;
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('authStatus').innerHTML = `<span class="flex items-center gap-1"><span class="w-2 h-2 bg-green-500 rounded-full"></span> Database Online</span>`;
-            } else {
-                signInAnonymously(auth);
-            }
-        });
-
-        window.processBlog = async () => {
-            const topic = document.getElementById('topicInput').value;
-            if(!topic) return alert("Please enter a topic");
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('outputDisplay').classList.add('hidden');
-            document.getElementById('loadingState').classList.remove('hidden');
+            const colors = {
+                info: 'text-slate-400',
+                process: 'text-blue-400',
+                success: 'text-emerald-400 font-bold',
+                error: 'text-rose-500 font-bold'
+            };
+
+            entry.className = `${colors[type]} py-1 border-b border-slate-800/50 flex gap-3`;
+            entry.innerHTML = `<span class="opacity-30 flex-shrink-0">${time}</span> <span>${message}</span>`;
+            
+            logContainer.prepend(entry);
+        }
+
+        async function copyText(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Copied to clipboard!');
+            } catch (err) {
+                // Fallback for iFrames
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('Copied to clipboard!');
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl z-[100] animate-bounce';
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            const topic = document.getElementById('topic').value;
+            const tone = document.getElementById('tone').value;
+
+            if (!topic) return log('❌ Please provide a topic first.', 'error');
+
+            // Reset UI
+            document.getElementById('loading-state').classList.remove('hidden');
+            document.getElementById('result-card').classList.add('hidden');
+            document.getElementById('status-badge').classList.remove('hidden');
+            document.getElementById('log-spinner').classList.remove('hidden');
+            
+            log(`🚀 Initiating Research for: "${topic}"`, 'process');
+            log(`🔍 Connecting to Google Search Grounding engine...`, 'info');
 
             try {
                 const response = await fetch('/api/generate', {
                     method: 'POST',
-                    body: JSON.stringify({ 
-                        topic, 
-                        tone: document.getElementById('toneSelect').value
-                        // apiKey is no longer sent from frontend, backend uses process.env.GEMINI_API_KEY
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, tone })
                 });
 
-                const blogData = await response.json();
-                if(blogData.error) throw new Error(blogData.error);
+                if (!response.ok) throw new Error('API request failed');
+
+                log(`📄 Search results received. Analyzing 5+ authoritative sources...`, 'process');
+                log(`✍️ Agent is writing the 2,000-word authoritative draft...`, 'process');
+
+                const data = await response.json();
+
+                // UI Fill
+                metaTitle.innerText = data.meta_title;
+                metaDesc.innerText = data.meta_description;
+                blogOutput.innerHTML = data.content;
+                featuredImage.src = data.images[0];
                 
-                currentGeneratedContent = blogData;
-                const imageUrl = `https://source.unsplash.com/featured/1200x800?${encodeURIComponent(topic)}`;
+                // Copy Actions
+                document.getElementById('copy-image-link').onclick = () => {
+                    navigator.clipboard.writeText(data.images[0]);
+                    showToast('Image URL copied!');
+                };
                 
-                renderBlog(blogData, imageUrl);
-            } catch (e) {
-                alert("Generation Error: " + e.message + ". Check if GEMINI_API_KEY is set in Netlify.");
+                document.getElementById('copy-blog-btn').onclick = () => {
+                    const blob = new Blob([data.content], { type: 'text/html' });
+                    const richText = document.getElementById('blog-output').innerText;
+                    navigator.clipboard.writeText(richText);
+                    showToast('Blog text copied!');
+                };
+
+                // Sources
+                sourcesList.innerHTML = data.verified_sources.map(s => `
+                    <a href="${s.uri}" target="_blank" class="block p-3 bg-blue-800/50 border border-blue-700 rounded-xl hover:bg-blue-800 transition-colors flex items-center justify-between group">
+                        <span class="text-sm truncate mr-4">${s.title}</span>
+                        <i data-lucide="external-link" class="w-4 h-4 text-blue-400 group-hover:text-white"></i>
+                    </a>
+                `).join('') || '<div class="text-blue-300 italic text-sm">No external sources used.</div>';
+                
+                lucide.createIcons();
+
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('result-card').classList.remove('hidden');
+                log(`✨ Task Complete. SEO Blog successfully generated.`, 'success');
+
+            } catch (err) {
+                log(`❌ Error: ${err.message}`, 'error');
+                document.getElementById('loading-state').classList.add('hidden');
             } finally {
-                document.getElementById('loadingState').classList.add('hidden');
-                document.getElementById('outputDisplay').classList.remove('hidden');
+                document.getElementById('status-badge').classList.add('hidden');
+                document.getElementById('log-spinner').classList.add('hidden');
             }
-        };
-
-        function renderBlog(data, imageUrl) {
-            document.getElementById('metaGrid').innerHTML = `
-                <div class="p-3 bg-slate-50 rounded-lg"><strong>Meta Title:</strong><br>${data.meta_title}</div>
-                <div class="p-3 bg-slate-50 rounded-lg"><strong>Meta Desc:</strong><br>${data.meta_description}</div>
-            `;
-            if(imageUrl) {
-                document.getElementById('postThumbnail').src = imageUrl;
-                document.getElementById('thumbnailContainer').classList.remove('hidden');
-            }
-            document.getElementById('blogBody').innerHTML = `<h1 class="text-4xl font-bold mb-6">${data.title}</h1>${data.content}`;
-        }
-
-        window.saveToFirestore = async () => {
-            if(!currentGeneratedContent) return;
-            try {
-                await addDoc(collection(db, "generated_posts"), {
-                    ...currentGeneratedContent,
-                    createdAt: new Date()
-                });
-                alert("Post saved successfully to Firestore!");
-            } catch (e) {
-                alert("Firestore Error: " + e.message);
-            }
-        };
+        });
     </script>
 </body>
 </html>
