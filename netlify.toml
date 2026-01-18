@@ -13,5 +13,5 @@
   status = 200
 
 [functions]
+  node_linker = "nf"
   external_node_modules = ["node-fetch"]
-  node_bundle = true
